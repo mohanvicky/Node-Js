@@ -61,6 +61,19 @@ const UserSchema = new mongoose.Schema(
         enum: ['daily', 'weekly', 'monthly'],
         default: 'daily'
       }
+    },
+    // OTP fields for password reset
+    resetPasswordOTP: {
+      type: String,
+      select: false
+    },
+    resetPasswordExpire: {
+      type: Date,
+      select: false
+    },
+    otpValidated: {
+      type: Boolean,
+      select: false
     }
   },
   {
@@ -68,7 +81,7 @@ const UserSchema = new mongoose.Schema(
   }
 );
 
-// // Encrypt password using bcrypt
+// Encrypt password using bcrypt
 UserSchema.pre('save', async function (next) {
   if (!this.isModified('password')) {
     next();
@@ -78,14 +91,14 @@ UserSchema.pre('save', async function (next) {
   this.password = await bcrypt.hash(this.password, salt);
 });
 
-// // Sign JWT and return
+// Sign JWT and return
 UserSchema.methods.getSignedJwtToken = function () {
   return jwt.sign({ id: this._id }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRE
   });
 };
 
-// // Match user entered password to hashed password in database
+// Match user entered password to hashed password in database
 UserSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
