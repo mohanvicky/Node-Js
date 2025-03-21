@@ -21,6 +21,16 @@ app.use(cors({
 
 app.use(express.json());
 
+// Middleware to log each API request
+app.use((req, res, next) => {
+  const method = req.method;    // GET, POST, PUT, DELETE
+  const url = req.originalUrl;   // The requested URL
+  const timestamp = new Date().toISOString(); // Current timestamp
+  console.log(`${timestamp} - ${method} ${url}`);
+  next();  // Pass control to the next middleware or route handler
+});
+
+
 // Routes
 app.use("/api/user", userRoutes);
 app.use("/api/tasks", taskRoutes); 
