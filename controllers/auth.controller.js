@@ -68,9 +68,6 @@ exports.forgotPassword = async (req, res) => {
     try {
       await transporter.sendMail(mailOptions);
 
-      // Log OTP generation to track multiple requests (optional, remove in production)
-      console.log(`New OTP generated for ${email} at ${new Date().toISOString()}`);
-
       res.status(200).json({
         statusCode: 200,
         success: true,
