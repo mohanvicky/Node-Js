@@ -33,13 +33,19 @@ exports.getTasks = async (req, res) => {
     res.status(200).json({
       statusCode: 200,
       success: true,
+      error: null,
       data: {
         totalTasks: tasks.length,
         tasks: formattedTasks,
       },
     });
   } catch (error) {
-    res.status(500).json({ statusCode: 500, success: false, data: { message: "Error fetching tasks", error: error.message } });
+    res.status(500).json({
+      statusCode: 500,
+      success: false,
+      error: { message: "Error fetching tasks", error: error.message },
+      data: null
+    });
   }
 };
 
@@ -52,9 +58,19 @@ exports.createTask = async (req, res) => {
     await task.save();
 
     // Send response
-    res.status(201).json({ statusCode: 201, success: true, data: { task } });
+    res.status(201).json({
+      statusCode: 201,
+      success: true,
+      error: null,
+      data: { task }
+    });
   } catch (error) {
-    res.status(500).json({ statusCode: 500, success: false, data: { message: "Error creating task", error: error.message } });
+    res.status(500).json({
+      statusCode: 500,
+      success: false,
+      error: { message: "Error creating task", error: error.message },
+      data: null
+    });
   }
 };
 
@@ -65,13 +81,28 @@ exports.getTaskById = async (req, res) => {
     // Find task by ID
     const task = await Task.findById(req.params.id);
     if (!task) {
-      return res.status(404).json({ statusCode: 404, success: false, data: { message: "Task not found" } });
+      return res.status(404).json({
+        statusCode: 404,
+        success: false,
+        error: { message: "Task not found" },
+        data: null
+      });
     }
 
     // Send response
-    res.status(200).json({ statusCode: 200, success: true, data: { task } });
+    res.status(200).json({
+      statusCode: 200,
+      success: true,
+      error: null,
+      data: { task }
+    });
   } catch (error) {
-    res.status(500).json({ statusCode: 500, success: false, data: { message: "Error fetching task", error: error.message } });
+    res.status(500).json({
+      statusCode: 500,
+      success: false,
+      error: { message: "Error fetching task", error: error.message },
+      data: null
+    });
   }
 };
 
@@ -82,13 +113,28 @@ exports.updateTask = async (req, res) => {
     // Find and update task
     const task = await Task.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!task) {
-      return res.status(404).json({ statusCode: 404, success: false, data: { message: "Task not found" } });
+      return res.status(404).json({
+        statusCode: 404,
+        success: false,
+        error: { message: "Task not found" },
+        data: null
+      });
     }
 
     // Send response
-    res.status(200).json({ statusCode: 200, success: true, data: { task } });
+    res.status(200).json({
+      statusCode: 200,
+      success: true,
+      error: null,
+      data: { task }
+    });
   } catch (error) {
-    res.status(500).json({ statusCode: 500, success: false, data: { message: "Error updating task", error: error.message } });
+    res.status(500).json({
+      statusCode: 500,
+      success: false,
+      error: { message: "Error updating task", error: error.message },
+      data: null
+    });
   }
 };
 
@@ -99,12 +145,27 @@ exports.deleteTask = async (req, res) => {
     // Find and delete task
     const task = await Task.findByIdAndDelete(req.params.id);
     if (!task) {
-      return res.status(404).json({ statusCode: 404, success: false, data: { message: "Task not found" } });
+      return res.status(404).json({
+        statusCode: 404,
+        success: false,
+        error: { message: "Task not found" },
+        data: null
+      });
     }
 
     // Send response
-    res.status(200).json({ statusCode: 200, success: true, data: { message: "Task deleted successfully" } });
+    res.status(200).json({
+      statusCode: 200,
+      success: true,
+      error: null,
+      data: { message: "Task deleted successfully" }
+    });
   } catch (error) {
-    res.status(500).json({ statusCode: 500, success: false, data: { message: "Error deleting task", error: error.message } });
+    res.status(500).json({
+      statusCode: 500,
+      success: false,
+      error: { message: "Error deleting task", error: error.message },
+      data: null
+    });
   }
 };
