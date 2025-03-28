@@ -93,3 +93,29 @@ exports.loginUser = async (req, res) => {
     });
   }
 };
+
+exports.getUsers = async (req, res) => {
+  try {
+    // Extract name from query parameters, with optional chaining to prevent errors
+    const { username } = req.query;
+
+    // If name is provided, use it for filtering; otherwise, fetch all users
+    const users = username 
+      ? await User.find({ username: { $regex: username, $options: 'i' } }) 
+      : await User.find();
+
+    res.status(200).json({
+      statusCode: 200,
+      success: true,
+      error: null,
+      data: { users }
+    });
+  } catch (error) {
+    res.status(500).json({
+      statusCode: 500,
+      success: false,
+      error: { message: "Server error", details: error.message },
+      data: null
+    });
+  }
+};
