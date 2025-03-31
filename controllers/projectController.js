@@ -276,19 +276,18 @@ exports.filterProjects = async (req, res) => {
 
     // Owner filter
     if (ownerId) {
-      filter.ownerId = mongoose.Types.ObjectId(ownerId);
+      filter.ownerId = mongoose.Types.ObjectId.createFromHexString(ownerId);
     }
 
     // Team Member Filters
     if (teamMemberRole || teamMemberId) {
-      filter.teamMembers = {};
-      
+      // Using dot notation for the array field
       if (teamMemberRole) {
-        filter.teamMembers.role = teamMemberRole;
+        filter['teamMembers.role'] = teamMemberRole;
       }
       
       if (teamMemberId) {
-        filter.teamMembers.userId = mongoose.Types.ObjectId(teamMemberId);
+        filter['teamMembers.userId'] = mongoose.Types.ObjectId.createFromHexString(teamMemberId);
       }
     }
 
