@@ -5,7 +5,8 @@ const Task = require("../models/Task");
 exports.getTasks = async (req, res) => {
   try {
     const { startDate, endDate, status, category } = req.query;
-    let query = {};
+    // Always filter by the current user's ID
+    let query = { userId: req.user.id };
 
     // Apply filters if provided
     if (startDate && endDate) {
