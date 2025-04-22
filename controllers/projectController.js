@@ -98,8 +98,9 @@ exports.getProjectById = async (req, res) => {
     }
 
     const project = await Project.findById(id)
-      .populate('ownerId', 'name email')
-      .populate('teamMembers.userId', 'name email');
+      .populate('ownerId', 'username email')
+      .populate('teamMembers.userId', 'username email')
+      .populate('kanbanColumns.taskIds', 'title estimates'); 
 
     if (!project) {
       return res.status(404).json({
