@@ -7,7 +7,8 @@ const {
   getProjectById,
   updateProject,
   deleteProject,
-  filterProjects
+  filterProjects,
+  updateInvitationStatus
 } = require('../controllers/projectController');
 
 // Create a new project
@@ -27,5 +28,8 @@ router.put('/:id',auth, updateProject);
 
 // Delete a project
 router.delete('/:id',auth, deleteProject);
+
+// Accept or reject project invitation
+router.put('/:id/accept-invitation',auth, updateInvitationStatus);
 
 module.exports = router;
