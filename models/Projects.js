@@ -26,6 +26,11 @@ const ProjectSchema = new mongoose.Schema({
       enum: ['admin', 'member', 'viewer'],
       default: 'member'
     },
+    invitationStatus: {
+      type: String,
+      enum: ['accepted', 'pending', 'declined'],
+      default: 'pending'
+    },
     joinedAt: {
       type: Date,
       default: Date.now
