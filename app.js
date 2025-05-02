@@ -8,6 +8,7 @@ const commonRoutes = require("./routes/common.routes");
 const taskRoutes = require("./routes/task.routes");
 const projectRoutes = require("./routes/project.routes");
 const projectTasks = require("./routes/projectTasks.routes");
+const habitRoutes = require("./routes/habit.routes");
 
 const app = express();
 
@@ -39,6 +40,7 @@ app.use("/api/tasks", taskRoutes);
 app.use("/api", commonRoutes);
 app.use("/api/projects", projectRoutes);
 app.use("/api/projectTasks", projectTasks);
+app.use("/api/habits", habitRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
