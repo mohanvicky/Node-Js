@@ -28,6 +28,7 @@ exports.getTasks = async (req, res) => {
       priority: task.priority,
       category: task.category,
       status: task.status,
+      timeTracking:  task.timeTracking
     }));
 
     // Send response
