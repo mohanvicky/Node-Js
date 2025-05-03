@@ -272,37 +272,28 @@ exports.updateHabit = async (req, res) => {
  */
 exports.deleteHabit = async (req, res) => {
   try {
-    const habit = await Habit.findById(req.params.id);
+    const id = req.params.id;
     
-    // Check if habit exists
+    // Find and authorize in one step
+    const habit = await Habit.findOne({ _id: id, userId: req.user.id });
+    
+    // Handle not found or not authorized
     if (!habit) {
       return res.status(404).json({
         statusCode: 404,
         success: false,
         error: { 
           message: "Not found", 
-          details: "Habit not found" 
+          details: "Habit not found or not authorized" 
         },
         data: null
       });
     }
     
-    // Check if user owns the habit
-    if (habit.userId.toString() !== req.user.id) {
-      return res.status(403).json({
-        statusCode: 403,
-        success: false,
-        error: { 
-          message: "Forbidden", 
-          details: "Not authorized to delete this habit" 
-        },
-        data: null
-      });
-    }
+    // Delete directly since we already confirmed ownership
+    await habit.deleteOne();
     
-    await habit.remove();
-    
-    res.json({
+    return res.json({
       statusCode: 200,
       success: true,
       error: null,
@@ -310,7 +301,21 @@ exports.deleteHabit = async (req, res) => {
     });
   } catch (error) {
     console.error('Error deleting habit:', error);
-    res.status(500).json({
+    
+    // Handle cast errors (invalid ObjectId) specifically
+    if (error.name === 'CastError') {
+      return res.status(400).json({
+        statusCode: 400,
+        success: false,
+        error: { 
+          message: "Invalid habit ID format", 
+          details: error.message 
+        },
+        data: null
+      });
+    }
+    
+    return res.status(500).json({
       statusCode: 500,
       success: false,
       error: { 
