@@ -40,6 +40,10 @@ const TaskSchema = new mongoose.Schema(
       type: Boolean,
       default: false
     },
+    isTime: {
+      type: Boolean,
+      default: false
+    },
     recurrencePattern: {
       type: {
         type: String,

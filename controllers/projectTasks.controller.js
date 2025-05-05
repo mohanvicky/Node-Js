@@ -21,6 +21,7 @@ exports.createTask = async (req, res) => {
     const { title, description, assignedTo, projectId, columnId, 
             estimates, dueDate, priority } = req.body;
 
+    // Validation for project and column
     const project = await Project.findById(projectId);
     if (!project) {
       return res.status(404).json({
@@ -42,12 +43,39 @@ exports.createTask = async (req, res) => {
         data: null
       });
     }
+    
+    // Validate assignedTo is a valid ObjectId if provided
+    if (assignedTo && !mongoose.isValidObjectId(assignedTo)) {
+      return res.status(400).json({
+        statusCode: 400,
+        success: false,
+        error: { message: "Invalid user ID for assignedTo" },
+        data: null
+      });
+    }
+    console.log("assignedTo",assignedTo);
+    
+
+    // Check if user is a team member of the project
+    const isMember = project.teamMembers.some(member =>
+      member.userId.toString() === assignedTo
+    );    
+  
+    if (!isMember) {
+      return res.status(400).json({
+        statusCode: 400,
+        success: false,
+        error: { message: "Assigned user is not a member of the project" },
+        data: null
+      });
+    }
+    
 
     const newTask = new ProjectTask({
       title,
       description,
       createdBy: req.user.id,
-      assignedTo: assignedTo || null,
+      assignedTo: assignedTo || null,  // This should be a valid ObjectId or null
       projectId,
       columnId,
       estimates: estimates || { estimated: 0, actual: 0 },
@@ -56,6 +84,10 @@ exports.createTask = async (req, res) => {
     });
 
     const savedTask = await newTask.save();
+
+    // // Populate the assignedTo field for response
+    const populatedTask = await ProjectTask.findById(savedTask._id)
+      .populate('assignedTo', 'name email');
 
     await Project.updateOne(
       { _id: projectId, "kanbanColumns._id": columnId },
@@ -187,6 +219,42 @@ exports.updateTask = async (req, res) => {
       });
     }
 
+    // If 'assignedTo' is being updated, validate it
+    if (updates.assignedTo) {
+      if (!mongoose.isValidObjectId(updates.assignedTo)) {
+        return res.status(400).json({
+          statusCode: 400,
+          success: false,
+          error: { message: "Invalid user ID for assignedTo" },
+          data: null
+        });
+      }
+
+      // Get the related project to verify team membership
+      const project = await Project.findById(task.projectId);
+      if (!project) {
+        return res.status(404).json({
+          statusCode: 404,
+          success: false,
+          error: { message: "Associated project not found" },
+          data: null
+        });
+      }
+
+      const isMember = project.teamMembers.some(member =>
+        member.userId.toString() === updates.assignedTo
+      );
+
+      if (!isMember) {
+        return res.status(400).json({
+          statusCode: 400,
+          success: false,
+          error: { message: "Assigned user is not a member of the project" },
+          data: null
+        });
+      }
+    }
+
     const updatedTask = await ProjectTask.findByIdAndUpdate(
       taskId,
       { $set: updates },
@@ -210,6 +278,7 @@ exports.updateTask = async (req, res) => {
     });
   }
 };
+
 
 // ✅ **Delete Task**
 exports.deleteTask = async (req, res) => {
@@ -514,6 +583,74 @@ exports.moveTaskToColumn = async (req, res) => {
 
   } catch (error) {
     console.error('Error moving task:', error);
+    return res.status(500).json({
+      statusCode: 500,
+      success: false,
+      error: { message: 'Server error', details: error.message },
+      data: null
+    });
+  }
+};
+
+exports.removeTeamMember = async (req, res) => {
+  try {
+    const { projectId, userId } = req.params;
+    
+    // Validate ObjectIds early
+    if (!mongoose.isValidObjectId(projectId) || !mongoose.isValidObjectId(userId)) {
+      return res.status(400).json({
+        statusCode: 400,
+        success: false,
+        error: { message: 'Invalid project or user ID' },
+        data: null
+      });
+    }
+
+    // Find project and check if user is a team member in one query
+    const project = await Project.findOne({ 
+      _id: projectId,
+      'teamMembers.userId': userId
+    });
+
+    // Handle project not found
+    if (!project) {
+      const projectExists = await Project.exists({ _id: projectId });
+      
+      return res.status(projectExists ? 400 : 404).json({
+        statusCode: projectExists ? 400 : 404,
+        success: false,
+        error: { 
+          message: projectExists 
+            ? 'User is not a team member of this project' 
+            : 'Project not found' 
+        },
+        data: null
+      });
+    }
+
+    // Use Promise.all for parallel operations
+    await Promise.all([
+      // Remove from teamMembers array
+      Project.updateOne(
+        { _id: projectId },
+        { $pull: { teamMembers: { userId } } }
+      ),
+      
+      // Unassign user from all tasks in that project
+      ProjectTask.updateMany(
+        { projectId, assignedTo: userId },
+        { $set: { assignedTo: null } }
+      )
+    ]);
+
+    return res.status(200).json({
+      statusCode: 200,
+      success: true,
+      error: null,
+      data: { message: 'Team member removed from project and tasks' }
+    });
+  } catch (error) {
+    console.error('Error removing team member:', error.message);
     return res.status(500).json({
       statusCode: 500,
       success: false,

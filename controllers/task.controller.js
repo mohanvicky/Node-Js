@@ -18,19 +18,6 @@ exports.getTasks = async (req, res) => {
     // Fetch tasks from the database
     const tasks = await Task.find(query);
 
-    // Format tasks for calendar display
-    const formattedTasks = tasks.map(task => ({
-      id: task._id,
-      title: task.title,
-      start: task.startDate,
-      end: task.dueDate,
-      allDay: !task.startDate,
-      priority: task.priority,
-      category: task.category,
-      status: task.status,
-      timeTracking:  task.timeTracking
-    }));
-
     // Send response
     res.status(200).json({
       statusCode: 200,
@@ -38,7 +25,7 @@ exports.getTasks = async (req, res) => {
       error: null,
       data: {
         totalTasks: tasks.length,
-        tasks: formattedTasks,
+        tasks: tasks,
       },
     });
   } catch (error) {
