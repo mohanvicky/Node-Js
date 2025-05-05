@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const auth = require("../middleware/auth");
-const {createTask, getAllTasks, getTaskById, updateTask, deleteTask, getTasksByProject, getTasksByColumn, getTasksAssignedToUser, moveTaskToColumn } = require('../controllers/projectTasks.controller');
+const {createTask, getAllTasks, getTaskById, updateTask, deleteTask, getTasksByProject, getTasksByColumn, getTasksAssignedToUser, moveTaskToColumn, removeTeamMember } = require('../controllers/projectTasks.controller');
 
 // CRUD operations
 router.post('/', auth, createTask);
@@ -15,5 +15,6 @@ router.get('/project/:projectId', auth, getTasksByProject);
 router.get('/project/:projectId/column/:columnId', auth, getTasksByColumn);
 router.get('/assigned/:userId', auth, getTasksAssignedToUser);
 router.put('/:taskId/move/:columnId', auth, moveTaskToColumn);
+router.delete('/:projectId/team/:userId', auth, removeTeamMember);
 
 module.exports = router;
