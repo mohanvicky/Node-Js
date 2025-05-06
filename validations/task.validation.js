@@ -33,6 +33,7 @@ const taskSchema = Joi.object({
   category: Joi.string().optional(),
   tags: Joi.array().items(Joi.string()).optional(),
   isRecurring: Joi.boolean().default(false),
+  isTime: Joi.boolean().default(false),
   recurrencePattern: Joi.alternatives().conditional("isRecurring", {
     is: true,
     then: Joi.object({
