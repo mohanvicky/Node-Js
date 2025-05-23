@@ -7,7 +7,7 @@ const taskSchema = Joi.object({
     "string.min": "Title should have at least 3 characters.",
     "string.max": "Title should not exceed 100 characters.",
   }),
-  description: Joi.string().max(500).optional(),
+  description: Joi.string().max(500).allow('').optional(),
   startDate: Joi.date().iso().optional(),
   dueDate: Joi.alternatives().conditional("startDate", {
     is: Joi.exist(),

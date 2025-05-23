@@ -1,4 +1,6 @@
 const Project = require('../models/Projects');
+const User = require('../models/User');
+const {sendProjectInvitations, sendProjectInvitationsStaus} = require('../Utils/utils');
 const mongoose = require('mongoose');
 
 // Create a new project
@@ -16,21 +18,18 @@ exports.createProject = async (req, res) => {
       kanbanColumns 
     } = req.body;
 
-    // In the createProject function, before saving the new project:
-    if (teamMembers && Array.isArray(teamMembers)) {
-      // Set owner's invitation status to 'accepted' automatically
-      teamMembers.forEach(member => {
-        if (member.userId.toString() === ownerId.toString()) {
-          member.invitationStatus = 'accepted';
-        }
-      });
-    }
+    // Process team members and set owner's invitation status
+    const processedTeamMembers = processTeamMembers(teamMembers, ownerId);
+    
+    // Send invitations to team members
+    await sendInvitations(processedTeamMembers, name);
 
+    // Create and save new project
     const newProject = new Project({
       name,
       description,
       ownerId,
-      teamMembers,
+      teamMembers: processedTeamMembers,
       status,
       startDate,
       endDate,
@@ -58,6 +57,42 @@ exports.createProject = async (req, res) => {
     });
   }
 };
+
+// Helper function to process team members
+function processTeamMembers(teamMembers, ownerId) {
+  if (!teamMembers || !Array.isArray(teamMembers)) {
+    return [];
+  }
+
+  return teamMembers.map(member => {
+    // Auto-accept invitation for project owner
+    if (member.userId.toString() === ownerId.toString()) {
+      return { ...member, invitationStatus: 'accepted' };
+    }
+    return member;
+  });
+}
+
+// Helper function to send invitations
+async function sendInvitations(teamMembers, projectName) {
+  if (!teamMembers.length) return;
+
+  const teamMemberIds = teamMembers.map(member => member.userId);
+  
+  // Get user details for invitations
+  const teamUsers = await User.find({ 
+    _id: { $in: teamMemberIds } 
+  }).select('email username');
+
+  // Build invitation list
+  const invitationList = teamUsers.map(user => ({
+    email: user.email,
+    username: user.username || 'Team Member'
+  }));
+
+  // Send project invitations
+  await sendProjectInvitations(invitationList, projectName);
+}
 
 // Get all projects
 exports.getAllProjects = async (req, res) => {
@@ -380,44 +415,18 @@ exports.filterProjects = async (req, res) => {
 // Update team member invitation status (accept or reject)
 exports.updateInvitationStatus = async (req, res) => {
   try {
-    const projectId = req.params.id;
+    const { id: projectId } = req.params;
     const { status } = req.body;
-    const userId = req.user.id; // Assuming auth middleware adds user to req
-    console.log(userId);
-    
+    const userId = req.user.id;
 
-    // Validate ObjectId
-    if (!mongoose.Types.ObjectId.isValid(projectId)) {
-      return res.status(400).json({
-        statusCode: 400,
-        success: false,
-        error: { message: "Invalid project ID" },
-        data: null
-      });
+    // Validate inputs
+    const validationError = validateInputs(projectId, status);
+    if (validationError) {
+      return res.status(400).json(validationError);
     }
 
-    // Validate status
-    if (!['accepted', 'declined'].includes(status)) {
-      return res.status(400).json({
-        statusCode: 400,
-        success: false,
-        error: { message: "Invalid invitation status. Must be 'accepted' or 'declined'" },
-        data: null
-      });
-    }
-
-    // Find project and update the specific team member's invitation status
-    const project = await Project.findOneAndUpdate(
-      { 
-        _id: projectId, 
-        'teamMembers.userId': userId 
-      },
-      { 
-        $set: { 'teamMembers.$.invitationStatus': status } 
-      },
-      { new: true }
-    );
-
+    // Update invitation status
+    const project = await updateProjectInvitationStatus(projectId, userId, status);
     if (!project) {
       return res.status(404).json({
         statusCode: 404,
@@ -426,6 +435,9 @@ exports.updateInvitationStatus = async (req, res) => {
         data: null
       });
     }
+
+    // Send notification to project owner
+    await notifyProjectOwner(project, userId, status);
 
     res.status(200).json({
       statusCode: 200,
@@ -448,3 +460,68 @@ exports.updateInvitationStatus = async (req, res) => {
     });
   }
 };
+
+// Helper function to validate inputs
+function validateInputs(projectId, status) {
+  if (!mongoose.Types.ObjectId.isValid(projectId)) {
+    return {
+      statusCode: 400,
+      success: false,
+      error: { message: "Invalid project ID" },
+      data: null
+    };
+  }
+
+  if (!['accepted', 'declined'].includes(status)) {
+    return {
+      statusCode: 400,
+      success: false,
+      error: { message: "Invalid invitation status. Must be 'accepted' or 'declined'" },
+      data: null
+    };
+  }
+
+  return null;
+}
+
+// Helper function to update project invitation status
+async function updateProjectInvitationStatus(projectId, userId, status) {
+  return await Project.findOneAndUpdate(
+    { 
+      _id: projectId, 
+      'teamMembers.userId': userId 
+    },
+    { 
+      $set: { 'teamMembers.$.invitationStatus': status } 
+    },
+    { new: true }
+  );
+}
+
+// Helper function to notify project owner
+async function notifyProjectOwner(project, userId, status) {
+  try {
+    // Fetch project owner and user details
+    const [owner, user] = await Promise.all([
+      User.findById(project.ownerId).select('email username'),
+      User.findById(userId).select('username')
+    ]);
+
+    if (!owner?.email) {
+      console.warn('Project owner not found or has no email');
+      return;
+    }
+
+    // Send status notification email
+    await sendProjectInvitationsStaus(
+      owner.email,
+      owner.username || 'Admin',
+      user?.username || 'A team member',
+      status,
+      project.name
+    );
+  } catch (error) {
+    console.error('Failed to notify project owner:', error.message);
+    // Don't throw - this shouldn't fail the main operation
+  }
+}
