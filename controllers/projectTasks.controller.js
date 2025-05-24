@@ -44,30 +44,20 @@ exports.createTask = async (req, res) => {
       });
     }
     
-    // Validate assignedTo is a valid ObjectId if provided
-    if (assignedTo && !mongoose.isValidObjectId(assignedTo)) {
-      return res.status(400).json({
-        statusCode: 400,
-        success: false,
-        error: { message: "Invalid user ID for assignedTo" },
-        data: null
-      });
-    }
-    console.log("assignedTo",assignedTo);
-    
-
     // Check if user is a team member of the project
-    const isMember = project.teamMembers.some(member =>
-      member.userId.toString() === assignedTo
-    );    
-  
-    if (!isMember) {
-      return res.status(400).json({
-        statusCode: 400,
-        success: false,
-        error: { message: "Assigned user is not a member of the project" },
-        data: null
-      });
+    if (assignedTo){
+      const isMember = project.teamMembers.some(member =>
+        member.userId.toString() === assignedTo
+      );    
+    
+      if (!isMember) {
+        return res.status(400).json({
+          statusCode: 400,
+          success: false,
+          error: { message: "Assigned user is not a member of the project" },
+          data: null
+        });
+      }
     }
     
 
