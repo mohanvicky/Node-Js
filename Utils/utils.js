@@ -74,7 +74,66 @@ const sendProjectInvitationsStaus = async (adminEmail, admin, username, status, 
     }
 };
 
+async function notifyOwnerTaskStatus(project, owner, ownerEmail,user, task, column) {
+  const currentDate = new Date().toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+
+  const mailOptions = {
+    from: `"Task Updates - ${process.env.APP_NAME}" <${process.env.GMAIL_USER}>`,
+    to: ownerEmail,
+    subject: `[${project.name}] Task Update: "${task}" moved to ${column}`,
+    html: `
+      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 25px; border: 1px solid #e8e8e8; border-radius: 8px; background-color: #f9f9f9;">
+        <div style="text-align: center; margin-bottom: 20px;">
+          <h1 style="color: #2c3e50; margin: 0; font-size: 24px;">Task Status Update</h1>
+          <p style="color: #7f8c8d; font-size: 14px; margin-top: 5px;">${currentDate}</p>
+        </div>
+        
+        <div style="background-color: white; border-radius: 6px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+          <h2 style="color: #3498db; margin-top: 0; font-size: 18px;">Project: ${project.name}</h2>
+          
+          <div style="margin: 15px 0; padding: 15px; background-color: #f8f9fa; border-left: 4px solid #3498db; border-radius: 4px;">
+            <p style="margin: 0; font-weight: bold; color: #2c3e50;">Task Updated:</p>
+            <p style="margin: 5px 0 0 0; font-size: 16px;">${task}</p>
+          </div>
+          
+          <div style="display: flex; margin: 20px 0;">
+            <div style="flex: 1; text-align: center; background-color: #e8f4fc; padding: 10px; border-radius: 4px;">
+              <p style="margin: 0; font-size: 12px; color: #7f8c8d;">NEW STATUS</p>
+              <p style="margin: 5px 0 0 0; font-weight: bold; color: #27ae60;">${column}</p>
+            </div>
+          </div>
+          
+          <p style="margin: 20px 0 10px 0;">Hello ${owner || 'Project Owner'},</p>
+          <p style="margin: 0 0 15px 0;">The task <strong>"${task}"</strong> has been updated and moved to the <strong>${column}</strong> column in your project by <strong>${user || 'Team Member'}</strong>.</p>
+          
+          <p style="margin: 0 0 15px 0;">Please log in to your account to view the updated task details.</p>
+          
+          <p style="margin: 0 0 15px 0;">Best regards,<br>${process.env.APP_NAME}</p>
+        </div>
+        
+        <div style="text-align: center; color: #95a5a6; font-size: 12px; margin-top: 20px; padding-top: 15px; border-top: 1px solid #ecf0f1;">
+          <p style="margin: 5px 0;">This is an automated notification from ${process.env.APP_NAME}.</p>
+        </div>
+      </div>
+    `
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log('Task status notification email sent successfully');
+  } catch (err) {
+    console.error('Failed to send task status notification:', err.message);
+    // Consider adding error handling/retry logic here
+  }
+}
+
 module.exports = {
   sendProjectInvitations,
-  sendProjectInvitationsStaus
+  sendProjectInvitationsStaus,
+  notifyOwnerTaskStatus
 };
