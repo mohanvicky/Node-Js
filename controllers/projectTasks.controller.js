@@ -192,12 +192,13 @@ exports.updateTask = async (req, res) => {
     const { taskId } = req.params;
     const updates = req.body;
 
+    // Validate task ID
     if (!mongoose.isValidObjectId(taskId)) {
       return res.status(400).json({
         statusCode: 400,
         success: false,
         error: { message: "Invalid task ID" },
-        data: null
+        data: null,
       });
     }
 
@@ -211,7 +212,17 @@ exports.updateTask = async (req, res) => {
       });
     }
 
-    // If 'assignedTo' is being updated, validate it
+    const project = await Project.findById(task.projectId);
+    if (!project) {
+      return res.status(404).json({
+        statusCode: 404,
+        success: false,
+        error: { message: "Associated project not found" },
+        data: null,
+      });
+    }
+
+    // Validate 'assignedTo' if being updated
     if (updates.assignedTo) {
       if (!mongoose.isValidObjectId(updates.assignedTo)) {
         return res.status(400).json({
@@ -222,19 +233,8 @@ exports.updateTask = async (req, res) => {
         });
       }
 
-      // Get the related project to verify team membership
-      const project = await Project.findById(task.projectId);
-      if (!project) {
-        return res.status(404).json({
-          statusCode: 404,
-          success: false,
-          error: { message: "Associated project not found" },
-          data: null
-        });
-      }
-
-      const isMember = project.teamMembers.some(member =>
-        member.userId.toString() === updates.assignedTo
+      const isMember = project.teamMembers.some(
+        (member) => member.userId.toString() === updates.assignedTo
       );
 
       if (!isMember) {
@@ -242,16 +242,47 @@ exports.updateTask = async (req, res) => {
           statusCode: 400,
           success: false,
           error: { message: "Assigned user is not a member of the project" },
-          data: null
+          data: null,
         });
       }
     }
 
+    // Update the task
     const updatedTask = await ProjectTask.findByIdAndUpdate(
       taskId,
       { $set: updates },
       { new: true, runValidators: true }
-    ).populate('assignedTo', 'name email');
+    ).populate("assignedTo", "name email");
+
+    // Handle column update and notification
+    if (updates.columnId) {
+      const [owner, user] = await Promise.all([
+        User.findById(project.ownerId).select("username email"),
+        User.findById(req.user.id).select("username"),
+      ]);
+
+      const newColumn = project.kanbanColumns.find(
+        (col) => col._id.toString() === updates.columnId
+      );
+
+      // Determine if the updated column is the last column
+      const lastColumn = project.kanbanColumns.reduce((latest, column) =>
+        column.order > latest.order ? column : latest
+      );
+
+      const isLastColumn = lastColumn._id.toString() === updates.columnId;
+
+      if (isLastColumn) {
+        await notifyOwnerTaskStatus(
+          project,
+          owner.username,
+          owner.email,
+          user.username,
+          task.title,
+          newColumn?.name || "Unknown"
+        );
+      }
+    }
 
     return res.status(200).json({
       statusCode: 200,
@@ -259,18 +290,17 @@ exports.updateTask = async (req, res) => {
       error: null,
       data: { task: updatedTask }
     });
-
+    
   } catch (error) {
     console.error("Error updating task:", error);
     return res.status(500).json({
       statusCode: 500,
       success: false,
       error: { message: "Server error", details: error.message },
-      data: null
+      data: null,
     });
   }
 };
-
 
 // ✅ **Delete Task**
 exports.deleteTask = async (req, res) => {
@@ -563,14 +593,12 @@ exports.moveTaskToColumn = async (req, res) => {
       User.findById(req.user.id).select('username')
     ]);
 
-    // Check if task should trigger notification (when moved to last position)
-    const tasksInNewColumn = await ProjectTask.find({
-      _id: { $in: newColumn.taskIds }
-    }).sort({ order: -1 });
+    // Check if the target column is the last column in the project
+    const isLastColumn = project.kanbanColumns.reduce((max, column) => {
+      return column.order > max.order ? column : max;
+    }, project.kanbanColumns[0])._id.toString() === columnId;
 
-    const isLast = tasksInNewColumn.length === 0 || task.order >= tasksInNewColumn[0].order;
-    
-    if (isLast) {
+    if (isLastColumn) {
       await notifyOwnerTaskStatus(project, owner.username, owner.email, user.username, task.title, newColumn.name);
     }
 
