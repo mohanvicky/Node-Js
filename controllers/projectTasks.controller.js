@@ -1,5 +1,7 @@
 const ProjectTask = require('../models/ProjectTasks');
 const Project = require('../models/Projects');
+const User = require('../models/User');
+const {notifyOwnerTaskStatus} = require('../Utils/utils');
 const mongoose = require('mongoose');
 const { ObjectId } = mongoose.Types;
 
@@ -511,6 +513,7 @@ exports.moveTaskToColumn = async (req, res) => {
   try {
     const { taskId, columnId } = req.params;
 
+    // Validate ObjectIds
     if (!mongoose.isValidObjectId(taskId) || !mongoose.isValidObjectId(columnId)) {
       return res.status(400).json({
         statusCode: 400,
@@ -520,6 +523,7 @@ exports.moveTaskToColumn = async (req, res) => {
       });
     }
 
+    // Find task
     const task = await ProjectTask.findById(taskId);
     if (!task) {
       return res.status(404).json({
@@ -530,9 +534,10 @@ exports.moveTaskToColumn = async (req, res) => {
       });
     }
 
+    // Find project and validate column exists
     const project = await Project.findById(task.projectId);
     const newColumn = project.kanbanColumns.find(col => col._id.toString() === columnId);
-
+    
     if (!newColumn) {
       return res.status(404).json({
         statusCode: 404,
@@ -542,6 +547,7 @@ exports.moveTaskToColumn = async (req, res) => {
       });
     }
 
+    // Check if task is already in target column
     if (task.columnId.toString() === columnId) {
       return res.status(200).json({
         statusCode: 200,
@@ -551,16 +557,38 @@ exports.moveTaskToColumn = async (req, res) => {
       });
     }
 
-    await Project.updateOne(
-      { _id: task.projectId, "kanbanColumns._id": task.columnId },
-      { $pull: { "kanbanColumns.$.taskIds": task._id } }
-    );
+    // Get user info for notifications
+    const [owner, user] = await Promise.all([
+      User.findById(project.ownerId).select('username email'),
+      User.findById(req.user.id).select('username')
+    ]);
 
-    await Project.updateOne(
-      { _id: task.projectId, "kanbanColumns._id": columnId },
-      { $push: { "kanbanColumns.$.taskIds": task._id } }
-    );
+    // Check if task should trigger notification (when moved to last position)
+    const tasksInNewColumn = await ProjectTask.find({
+      _id: { $in: newColumn.taskIds }
+    }).sort({ order: -1 });
 
+    const isLast = tasksInNewColumn.length === 0 || task.order >= tasksInNewColumn[0].order;
+    
+    if (isLast) {
+      await notifyOwnerTaskStatus(project, owner.username, owner.email, user.username, task.title, newColumn.name);
+    }
+
+    // Update project columns atomically
+    await Promise.all([
+      // Remove from old column
+      Project.updateOne(
+        { _id: task.projectId, "kanbanColumns._id": task.columnId },
+        { $pull: { "kanbanColumns.$.taskIds": task._id } }
+      ),
+      // Add to new column
+      Project.updateOne(
+        { _id: task.projectId, "kanbanColumns._id": columnId },
+        { $push: { "kanbanColumns.$.taskIds": task._id } }
+      )
+    ]);
+
+    // Update task's column reference
     task.columnId = columnId;
     await task.save();
 
