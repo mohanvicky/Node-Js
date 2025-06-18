@@ -8,7 +8,7 @@ const { startOfDay, endOfDay, isAfter, isBefore, format } = require('date-fns');
  */
 exports.createHabit = async (req, res) => {
   try {
-    const { title, description, category, frequency, timeOfDay, goal, duration } = req.body;
+    const { title, description, category, frequency, timeOfDay, goal, duration, startDate } = req.body;
     
     // Validate required fields
     if (!title || !frequency || !frequency.type) {
@@ -40,7 +40,7 @@ exports.createHabit = async (req, res) => {
       category: category || 'General',
       frequency,
       timeOfDay: timeOfDay || [new Date()],
-      startDate: new Date(),
+      startDate: startDate || [new Date()],
       duration: duration || 0,
       goal: goal || {
         type: 'streak',
@@ -196,7 +196,7 @@ exports.getHabitById = async (req, res) => {
  */
 exports.updateHabit = async (req, res) => {
   try {
-    const { title, description, category, frequency, timeOfDay, goal, duration, endDate } = req.body;
+    const { title, description, category, frequency, timeOfDay, goal, duration, startDate, endDate } = req.body;
     
     // Find habit by ID
     let habit = await Habit.findById(req.params.id);
@@ -236,6 +236,7 @@ exports.updateHabit = async (req, res) => {
     if (timeOfDay) habitFields.timeOfDay = timeOfDay;
     if (goal) habitFields.goal = goal;
     if (duration !== undefined) habitFields.duration = duration;
+    if (startDate) habitFields.startDate = startDate;
     if (endDate) habitFields.endDate = endDate;
     
     // Update habit
