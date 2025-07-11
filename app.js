@@ -9,6 +9,7 @@ const taskRoutes = require("./routes/task.routes");
 const projectRoutes = require("./routes/project.routes");
 const projectTasks = require("./routes/projectTasks.routes");
 const habitRoutes = require("./routes/habit.routes");
+const expenseRoutes = require("./routes/expense.routes");
 
 const app = express();
 
@@ -41,6 +42,7 @@ app.use("/api", commonRoutes);
 app.use("/api/projects", projectRoutes);
 app.use("/api/projectTasks", projectTasks);
 app.use("/api/habits", habitRoutes);
+app.use('/api/expenses', expenseRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
