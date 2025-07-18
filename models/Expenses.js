@@ -38,6 +38,11 @@ const ExpenseSchema = new mongoose.Schema(
       type: String,
       trim: true,
       maxlength: [500, 'Description cannot be more than 500 characters']
+    },
+    budgetId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Budget',
+      required: false
     }
   },
   {
