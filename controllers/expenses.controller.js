@@ -1,15 +1,22 @@
 const Expense = require('../models/Expenses');
+const ExpenseCategory = require('../models/ExpenseCategory');
+const Budget = require('../models/Budget');
 
 // Create a new expense
 exports.createExpense = async (req, res) => {
   try {
-    const { amount, date, category, paymentMethod, billNo, description } = req.body;
+    const { amount, date, categoryName, paymentMethod, billNo, description } = req.body;
+
+    let category = await ExpenseCategory.findOne({ userId: req.user.id, name: categoryName });
+    if (!category) {
+      category = await ExpenseCategory.create({ userId: req.user.id, name: categoryName });
+    }
 
     const expense = new Expense({
       userId: req.user.id,
       amount,
       date,
-      category,
+      categoryId: category._id,
       paymentMethod,
       billNo,
       description,
@@ -17,12 +24,25 @@ exports.createExpense = async (req, res) => {
 
     const savedExpense = await expense.save();
 
+    // 🧠 Find matching budget for this category/user/date
+    const budget = await Budget.findOne({
+      userId: req.user.id,
+      categoryId: category._id,
+      startDate: { $lte: new Date(date) },
+      endDate: { $gte: new Date(date) }
+    });
+
+    if (budget) {
+      await budget.updateSpentAmount(amount); // ✅ This will also update status
+    }
+
     res.status(201).json({
       statusCode: 201,
       success: true,
       error: null,
       data: { expense },
     });
+
   } catch (error) {
     res.status(500).json({
       statusCode: 500,
@@ -35,7 +55,6 @@ exports.createExpense = async (req, res) => {
     });
   }
 };
-
 // Get all expenses for logged-in user
 exports.getExpenses = async (req, res) => {
   try {

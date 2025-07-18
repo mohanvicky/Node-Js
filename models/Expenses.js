@@ -18,10 +18,10 @@ const ExpenseSchema = new mongoose.Schema(
       required: [true, 'Please add a date'],
       default: Date.now
     },
-    category: {
-      type: String,
-      required: [true, 'Please add a category'],
-      trim: true
+    categoryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'ExpenseCategory',
+      required: true
     },
     paymentMethod: {
       type: String,
