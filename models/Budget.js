@@ -8,10 +8,10 @@ const BudgetSchema = new mongoose.Schema(
       ref: 'User',
       required: [true, 'User ID is required']
     },
-    category: {
-      type: String,
-      required: [true, 'Please add a category'],
-      trim: true
+    categoryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'ExpenseCategory',
+      required: true
     },
     budgetedAmount: {
       type: Number,
@@ -49,7 +49,9 @@ const BudgetSchema = new mongoose.Schema(
     }
   },
   {
-    timestamps: true
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
   }
 );
 
