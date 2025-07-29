@@ -1,5 +1,6 @@
 const Expense = require('../models/Expenses');
 const Budget = require('../models/Budget');
+const EMI = require('../models/EMI');
 const ExpenseCategory = require('../models/ExpenseCategory');
 const moment = require('moment');
 
@@ -58,6 +59,10 @@ exports.getFinancialOverview = async (req, res) => {
       startDate: { $lte: endDate.toDate() },
       endDate: { $gte: startDate.toDate() }
     });
+
+    // 🔁 New: Get monthly EMI total
+    const emis = await EMI.find({ userId, isPreclosed: false });
+    const totalMonthlyEMI = emis.reduce((sum, e) => sum + (e.emiAmount || 0), 0);
 
     const categoryData = {};
     let totalSpent = 0;
@@ -127,6 +132,7 @@ exports.getFinancialOverview = async (req, res) => {
         totalBudget,
         totalSpent,
         currentSavings: totalBudget - totalSpent,
+        totalMonthlyEMI,
         spendingTrend,
         categories: breakdown
       }
