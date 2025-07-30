@@ -14,6 +14,7 @@ const budgetRoutes = require("./routes/budget.routes");
 const expenseCategoryRoutes = require("./routes/expenseCategory.routes");
 const financialOverviewRoutes = require("./routes/finiacialOverview.routes");
 const emiRoutes = require("./routes/emi.routes");
+const investmentRoutes = require("./routes/investment.routes");
 
 const app = express();
 
@@ -51,6 +52,7 @@ app.use('/api/budgets', budgetRoutes);
 app.use('/api/expenseCategories', expenseCategoryRoutes);
 app.use('/api/financialOverview', financialOverviewRoutes);
 app.use('/api/emi', emiRoutes);
+app.use('/api/investments', investmentRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
