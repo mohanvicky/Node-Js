@@ -13,5 +13,5 @@ router.post('/validateSignIn-otp', validateSignInOTP);
 router.post('/forgot-password', forgotPassword);
 router.post('/validate-otp', validateOTP);
 router.post('/reset-password', resetPassword);
-router.put('/:id/deactivate', deactivateUser);
+router.put('/:id/deactivate',auth, deactivateUser);
 module.exports = router;
