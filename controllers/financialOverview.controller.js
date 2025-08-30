@@ -1,6 +1,7 @@
 const Expense = require('../models/Expenses');
 const Budget = require('../models/Budget');
 const EMI = require('../models/EMI');
+const Investment = require('../models/Investment');
 const ExpenseCategory = require('../models/ExpenseCategory');
 const moment = require('moment');
 
@@ -123,6 +124,29 @@ exports.getFinancialOverview = async (req, res) => {
       ? totalSpent > previousTotalSpent ? 'increase' : totalSpent < previousTotalSpent ? 'decrease' : 'no change'
       : 'no data';
 
+    // FETCH INVESTMENTS
+    const investments = await Investment.find({ userId });
+    let totalInvested = 0;
+    let totalInvestmentValue = 0;
+    investments.forEach(inv => {
+      totalInvested += inv.amountInvested;
+      totalInvestmentValue += inv.currentValue;
+    });
+    const investmentGain = totalInvestmentValue - totalInvested;
+    const monthlyInvestments = await Investment.aggregate([
+      { $match: { userId: mongoose.Types.ObjectId(userId) } },
+      {
+        $group: {
+          _id: { year: { $year: "$startDate" }, month: { $month: "$startDate" } },
+          totalInvested: { $sum: "$amountInvested" },
+          totalCurrentValue: { $sum: "$currentValue" },
+          investments: { $push: "$$ROOT" }
+        }
+      },
+      { $sort: { "_id.year": 1, "_id.month": 1 } }
+    ]);
+    
+
     res.status(200).json({
       statusCode: 200,
       success: true,
@@ -134,7 +158,13 @@ exports.getFinancialOverview = async (req, res) => {
         currentSavings: totalBudget - totalSpent,
         totalMonthlyEMI,
         spendingTrend,
-        categories: breakdown
+        categories: breakdown,
+        investments: {
+          totalInvested,
+          totalCurrentValue: totalInvestmentValue,
+          totalGain: investmentGain,
+          monthlyTotals: monthlyInvestments
+        }
       }
     });
 
