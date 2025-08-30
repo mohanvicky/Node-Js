@@ -8,14 +8,12 @@ const UserSchema = new mongoose.Schema(
     username: {
       type: String,
       required: [true, 'Please add a username'],
-      unique: true,
       trim: true,
       maxlength: [50, 'Username cannot be more than 50 characters']
     },
     email: {
       type: String,
       required: [true, 'Please add an email'],
-      unique: true,
       match: [
         /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
         'Please add a valid email'
@@ -30,6 +28,14 @@ const UserSchema = new mongoose.Schema(
     profilePicture: {
       type: String,
       default: 'default-profile.jpg'
+    },
+    isActive: {
+      type: Boolean,
+      default: true
+    },
+    deactivatedAt: {
+      type: Date,
+      default: null
     },
     preferences: {
       reminderSettings: {
@@ -78,6 +84,23 @@ const UserSchema = new mongoose.Schema(
   },
   {
     timestamps: true
+  }
+);
+
+// Create compound index to allow same username/email for deactivated users
+UserSchema.index(
+  { username: 1, isActive: 1 },
+  { 
+    unique: true,
+    partialFilterExpression: { isActive: true }
+  }
+);
+
+UserSchema.index(
+  { email: 1, isActive: 1 },
+  { 
+    unique: true,
+    partialFilterExpression: { isActive: true }
   }
 );
 
