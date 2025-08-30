@@ -133,18 +133,6 @@ exports.getFinancialOverview = async (req, res) => {
       totalInvestmentValue += inv.currentValue;
     });
     const investmentGain = totalInvestmentValue - totalInvested;
-    const monthlyInvestments = await Investment.aggregate([
-      { $match: { userId: mongoose.Types.ObjectId(userId) } },
-      {
-        $group: {
-          _id: { year: { $year: "$startDate" }, month: { $month: "$startDate" } },
-          totalInvested: { $sum: "$amountInvested" },
-          totalCurrentValue: { $sum: "$currentValue" },
-          investments: { $push: "$$ROOT" }
-        }
-      },
-      { $sort: { "_id.year": 1, "_id.month": 1 } }
-    ]);
     
 
     res.status(200).json({
@@ -159,12 +147,9 @@ exports.getFinancialOverview = async (req, res) => {
         totalMonthlyEMI,
         spendingTrend,
         categories: breakdown,
-        investments: {
-          totalInvested,
-          totalCurrentValue: totalInvestmentValue,
-          totalGain: investmentGain,
-          monthlyTotals: monthlyInvestments
-        }
+        totalInvested,
+        totalCurrentValue : totalInvestmentValue,
+        totalGain: investmentGain,
       }
     });
 

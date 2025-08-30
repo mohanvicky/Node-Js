@@ -135,7 +135,7 @@ exports.getUsers = async (req, res) => {
 // @desc Deactivate user
 exports.deactivateUser = async (req, res) => {
   try {
-    const { userId } = req.params.id;
+    const userId = req.params.id;    
 
     // Find the user
     const user = await User.findById(userId);
