@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { registerUser, loginUser, getUsers, deactivateUser } = require("../controllers/users.controller");
+const { registerUser, loginUser, getUsers, deactivateUser, editUser } = require("../controllers/users.controller");
 const auth = require("../middleware/auth"); // Middleware for authentication
 const { forgotPassword, validateOTP, resetPassword, validateSignInOTP, sendSignInOTP } = require('../controllers/auth.controller');
 
@@ -13,5 +13,6 @@ router.post('/validateSignIn-otp', validateSignInOTP);
 router.post('/forgot-password', forgotPassword);
 router.post('/validate-otp', validateOTP);
 router.post('/reset-password', resetPassword);
+router.put('/:id/editUser',auth, editUser);
 router.put('/:id/deactivate',auth, deactivateUser);
 module.exports = router;
