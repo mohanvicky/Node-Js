@@ -80,7 +80,15 @@ const UserSchema = new mongoose.Schema(
     otpValidated: {
       type: Boolean,
       select: false
+    },
+    fcmTokens: [{
+    token: String,
+    device: String, // 'android' or 'ios'
+    lastUpdated: {
+      type: Date,
+      default: Date.now
     }
+  }]
   },
   {
     timestamps: true

@@ -12,3 +12,4 @@ pnpm-lock.yaml
 logs
 *.
 .env
+firebase-service-account.json

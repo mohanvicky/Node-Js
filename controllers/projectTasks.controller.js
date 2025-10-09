@@ -2,6 +2,10 @@ const ProjectTask = require('../models/ProjectTasks');
 const Project = require('../models/Projects');
 const User = require('../models/User');
 const {notifyOwnerTaskStatus} = require('../Utils/utils');
+const {
+  sendTaskAssignedNotification,
+  sendTaskUpdatedNotification
+} = require('../Utils/notification');
 const mongoose = require('mongoose');
 const { ObjectId } = mongoose.Types;
 
@@ -67,7 +71,7 @@ exports.createTask = async (req, res) => {
       title,
       description,
       createdBy: req.user.id,
-      assignedTo: assignedTo || null,  // This should be a valid ObjectId or null
+      assignedTo: assignedTo || null,
       projectId,
       columnId,
       estimates: estimates || { estimated: 0, actual: 0 },
@@ -77,7 +81,7 @@ exports.createTask = async (req, res) => {
 
     const savedTask = await newTask.save();
 
-    // // Populate the assignedTo field for response
+    // Populate the assignedTo field for response
     const populatedTask = await ProjectTask.findById(savedTask._id)
       .populate('assignedTo', 'name email');
 
@@ -85,6 +89,29 @@ exports.createTask = async (req, res) => {
       { _id: projectId, "kanbanColumns._id": columnId },
       { $push: { "kanbanColumns.$.taskIds": savedTask._id } }
     );
+
+    // 🔔 Send notification to assigned user
+    if (assignedTo) {
+      try {
+        const creatorUser = await User.findById(req.user.id).select('username name');
+        const creatorName = creatorUser?.username || creatorUser?.name || 'Someone';
+        
+        await sendTaskAssignedNotification(
+          assignedTo,
+          {
+            taskId: savedTask._id,
+            title: savedTask.title,
+            projectId: projectId,
+            priority: savedTask.priority,
+            dueDate: savedTask.dueDate
+          },
+          creatorName
+        );
+      } catch (notifError) {
+        console.error('Error sending task assignment notification:', notifError);
+        // Don't fail the request if notification fails
+      }
+    }
 
     return res.status(201).json({
       statusCode: 201,
@@ -222,6 +249,11 @@ exports.updateTask = async (req, res) => {
       });
     }
 
+    // Store old values for notification
+    const oldAssignedTo = task.assignedTo?.toString();
+    const oldPriority = task.priority;
+    const oldColumnId = task.columnId?.toString();
+
     // Validate 'assignedTo' if being updated
     if (updates.assignedTo) {
       if (!mongoose.isValidObjectId(updates.assignedTo)) {
@@ -254,6 +286,10 @@ exports.updateTask = async (req, res) => {
       { new: true, runValidators: true }
     ).populate("assignedTo", "name email");
 
+    // Get updater info
+    const updaterUser = await User.findById(req.user.id).select('username');
+    const updaterName = updaterUser?.username || 'Someone';
+
     // Handle column update and notification
     if (updates.columnId) {
       const [owner, user] = await Promise.all([
@@ -281,6 +317,83 @@ exports.updateTask = async (req, res) => {
           task.title,
           newColumn?.name || "Unknown"
         );
+      }
+
+      // 🔔 Send notification to assigned user about status change
+      if (updatedTask.assignedTo && updatedTask.assignedTo._id.toString() !== req.user.id) {
+        try {
+          await sendTaskUpdatedNotification(
+            updatedTask.assignedTo._id,
+            {
+              taskId: updatedTask._id,
+              title: updatedTask.title,
+              projectId: updatedTask.projectId,
+              columnName: newColumn?.name,
+              priority: updatedTask.priority
+            },
+            updaterName,
+            'status'
+          );
+        } catch (notifError) {
+          console.error('Error sending task update notification:', notifError);
+        }
+      }
+    }
+
+    // 🔔 Send notification if assignedTo changed
+    if (updates.assignedTo && updates.assignedTo !== oldAssignedTo) {
+      try {
+        await sendTaskAssignedNotification(
+          updates.assignedTo,
+          {
+            taskId: updatedTask._id,
+            title: updatedTask.title,
+            projectId: updatedTask.projectId,
+            priority: updatedTask.priority,
+            dueDate: updatedTask.dueDate
+          },
+          updaterName
+        );
+      } catch (notifError) {
+        console.error('Error sending task reassignment notification:', notifError);
+      }
+    }
+
+    // 🔔 Send notification if priority changed
+    if (updates.priority && updates.priority !== oldPriority && updatedTask.assignedTo && updatedTask.assignedTo._id.toString() !== req.user.id) {
+      try {
+        await sendTaskUpdatedNotification(
+          updatedTask.assignedTo._id,
+          {
+            taskId: updatedTask._id,
+            title: updatedTask.title,
+            projectId: updatedTask.projectId,
+            priority: updatedTask.priority
+          },
+          updaterName,
+          'priority'
+        );
+      } catch (notifError) {
+        console.error('Error sending priority update notification:', notifError);
+      }
+    }
+
+    // 🔔 Send notification if due date changed
+    if (updates.dueDate && updatedTask.assignedTo && updatedTask.assignedTo._id.toString() !== req.user.id) {
+      try {
+        await sendTaskUpdatedNotification(
+          updatedTask.assignedTo._id,
+          {
+            taskId: updatedTask._id,
+            title: updatedTask.title,
+            projectId: updatedTask.projectId,
+            dueDate: updatedTask.dueDate
+          },
+          updaterName,
+          'dueDate'
+        );
+      } catch (notifError) {
+        console.error('Error sending due date update notification:', notifError);
       }
     }
 
@@ -593,6 +706,8 @@ exports.moveTaskToColumn = async (req, res) => {
       User.findById(req.user.id).select('username')
     ]);
 
+    const updaterName = user?.username || 'Someone';
+
     // Check if the target column is the last column in the project
     const isLastColumn = project.kanbanColumns.reduce((max, column) => {
       return column.order > max.order ? column : max;
@@ -619,6 +734,26 @@ exports.moveTaskToColumn = async (req, res) => {
     // Update task's column reference
     task.columnId = columnId;
     await task.save();
+
+    // 🔔 Send notification to assigned user about column change
+    if (task.assignedTo && task.assignedTo._id.toString() !== req.user.id) {
+      try {
+        await sendTaskUpdatedNotification(
+          task.assignedTo._id,
+          {
+            taskId: task._id,
+            title: task.title,
+            projectId: task.projectId,
+            columnName: newColumn.name,
+            priority: task.priority
+          },
+          updaterName,
+          'status'
+        );
+      } catch (notifError) {
+        console.error('Error sending task move notification:', notifError);
+      }
+    }
 
     return res.status(200).json({
       statusCode: 200,
