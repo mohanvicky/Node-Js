@@ -21,6 +21,7 @@
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "fill-range": "^7.1.1",
+    "firebase-admin": "^13.5.0",
     "glob-parent": "^5.1.2",
     "has-flag": "^3.0.0",
     "ignore-by-default": "^1.0.1",

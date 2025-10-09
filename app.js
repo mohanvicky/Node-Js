@@ -1,8 +1,12 @@
 require("dotenv").config(); // Ensure this is at the top!
 
+// Load environment variables from .env fileß
 const express = require("express");
 const cors = require("cors");
 const connectDB = require("./config/db");
+const admin = require('./config/firebase.config');
+
+// Route files
 const userRoutes = require("./routes/user.routes");
 const commonRoutes = require("./routes/common.routes");
 const taskRoutes = require("./routes/task.routes");
@@ -15,11 +19,37 @@ const expenseCategoryRoutes = require("./routes/expenseCategory.routes");
 const financialOverviewRoutes = require("./routes/finiacialOverview.routes");
 const emiRoutes = require("./routes/emi.routes");
 const investmentRoutes = require("./routes/investment.routes");
-
+const fcmTokenRoutes = require('./routes/fcmToken.routes');
 const app = express();
 
 // Connect to MongoDB
 connectDB();
+
+const testFirebaseConnection = async () => {
+  try {
+    // Test 1: Check if app is initialized
+    const app = admin.app();
+    console.log('🔥 Firebase App initialized:', app.name);
+
+    // Test 2: Try to verify a dummy token (this tests Auth service)
+    // Instead of listUsers which requires specific permissions
+    try {
+      await admin.auth().verifyIdToken('dummy-token');
+    } catch (error) {
+      // We expect this to fail with 'ID token has invalid signature'
+      // but if Auth is working, it won't say "no configuration"
+      if (error.code === 'auth/argument-error' || error.message.includes('invalid signature')) {
+        console.log('✅ Firebase Auth service is accessible');
+      } else {
+        console.warn('⚠️  Firebase Auth test warning:', error.message);
+      }
+    }
+  } catch (error) {
+    console.error('❌ Firebase connection test failed:', error.message);
+  }
+};
+
+testFirebaseConnection();
 
 // Enable CORS for all origins and methods
 app.use(cors({
@@ -53,6 +83,7 @@ app.use('/api/expenseCategories', expenseCategoryRoutes);
 app.use('/api/financialOverview', financialOverviewRoutes);
 app.use('/api/emi', emiRoutes);
 app.use('/api/investments', investmentRoutes);
+app.use('/api/fcm', fcmTokenRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
